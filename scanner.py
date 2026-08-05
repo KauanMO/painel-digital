@@ -6,34 +6,51 @@ from websocket import iniciar, enviar
 def converter_rpm(hex_string):
     partes = hex_string.split()
 
-    if len(partes) < 4:
+    try:
+        index = partes.index("41")
+
+        # PID 0C
+        if partes[index + 1] != "0C":
+            return 0
+
+        A = int(partes[index + 2], 16)
+        B = int(partes[index + 3], 16)
+
+        return ((A * 256) + B) // 4
+
+    except Exception:
         return 0
 
-    A = int(partes[2], 16)
-    B = int(partes[3], 16)
-
-    return ((A * 256) + B) // 4
 
 
 def converter_speed(hex_string):
     partes = hex_string.split()
 
-    if len(partes) < 3:
-        return 0
+    try:
+        index = partes.index("41")
 
-    return int(partes[2], 16)
+        # PID 0D
+        if partes[index + 1] != "0D":
+            return 0
+
+        return int(partes[index + 2], 16)
+
+    except Exception:
+        return 0
 
 
 async def loop(connection):
-
-    asyncio.create_task(iniciar())
-
     connection.connect()
 
     connection.send_command("ATZ")
     connection.send_command("ATE0")
 
     while True:
+        rpm_raw = connection.send_command("010C")
+        speed_raw = connection.send_command("010D")
+
+        print("RPM RAW:", repr(rpm_raw))
+        print("SPEED RAW:", repr(speed_raw))
 
         rpm = converter_rpm(
             connection.send_command("010C")
@@ -50,4 +67,4 @@ async def loop(connection):
             "speed": speed
         })
 
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(0.1)
