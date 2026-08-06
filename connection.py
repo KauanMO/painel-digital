@@ -1,7 +1,6 @@
 import socket
 import serial
 
-
 class EmulatorConnection:
     def __init__(self, host="127.0.0.1", port=35000):
         self.host = host
@@ -29,7 +28,6 @@ class EmulatorConnection:
         if self.sock:
             self.sock.close()
 
-
 class OBDConnection:
     def __init__(self, port="COM5", baudrate=38400):
         self.port = port
@@ -40,21 +38,34 @@ class OBDConnection:
         self.serial = serial.Serial(
             self.port,
             baudrate=self.baudrate,
-            timeout=1
+            timeout=0.05
         )
+        
+        self.send_command("ATZ")
+        self.send_command("ATE0")
+        self.send_command("ATL0")
+        self.send_command("ATS0")
+        self.send_command("ATH0")
 
     def send_command(self, command):
-        self.serial.write(f"{command}\r".encode())
+        self.serial.reset_input_buffer()
 
-        response = ""
+        self.serial.write((command + "\r").encode())
+
+        resposta = bytearray()
 
         while True:
-            response += self.serial.read(1024).decode(errors="ignore")
+            b = self.serial.read(1)
 
-            if ">" in response:
+            if not b:
                 break
 
-        return response.replace(">", "").strip()
+            if b == b">":
+                break
+
+            resposta.extend(b)
+
+        return resposta.decode(errors="ignore").strip()
 
     def close(self):
         if self.serial:

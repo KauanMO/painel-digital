@@ -1,56 +1,46 @@
 import asyncio
 
-from websocket import iniciar, enviar
+
+def extrair_pid(hex_string, pid):
+    partes = hex_string.replace("\r", " ").split()
+
+    try:
+        index = partes.index("41")
+
+        if partes[index + 1].upper() != pid:
+            return None
+
+        return partes[index + 2:]
+
+    except (ValueError, IndexError):
+        return None
 
 
 def converter_rpm(hex_string):
-    partes = hex_string.split()
+    dados = extrair_pid(hex_string, "0C")
 
-    try:
-        index = partes.index("41")
-
-        # PID 0C
-        if partes[index + 1] != "0C":
-            return 0
-
-        A = int(partes[index + 2], 16)
-        B = int(partes[index + 3], 16)
-
-        return ((A * 256) + B) // 4
-
-    except Exception:
+    if not dados or len(dados) < 2:
         return 0
 
+    A = int(dados[0], 16)
+    B = int(dados[1], 16)
+
+    return ((A * 256) + B) // 4
 
 
 def converter_speed(hex_string):
-    partes = hex_string.split()
+    dados = extrair_pid(hex_string, "0D")
 
-    try:
-        index = partes.index("41")
-
-        # PID 0D
-        if partes[index + 1] != "0D":
-            return 0
-
-        return int(partes[index + 2], 16)
-
-    except Exception:
+    if not dados:
         return 0
 
+    return int(dados[0], 16)
 
-async def loop(connection):
+
+async def loop(connection, callback):
     connection.connect()
 
-    connection.send_command("ATZ")
-    connection.send_command("ATE0")
-
     while True:
-        rpm_raw = connection.send_command("010C")
-        speed_raw = connection.send_command("010D")
-
-        print("RPM RAW:", repr(rpm_raw))
-        print("SPEED RAW:", repr(speed_raw))
 
         rpm = converter_rpm(
             connection.send_command("010C")
@@ -60,11 +50,6 @@ async def loop(connection):
             connection.send_command("010D")
         )
 
-        print(rpm, speed)
+        callback(speed, rpm)
 
-        await enviar({
-            "rpm": rpm,
-            "speed": speed
-        })
-
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.05)

@@ -2,16 +2,12 @@ from PySide6.QtWidgets import QApplication
 import threading
 import asyncio
 import sys
-import time
 
 from UI import Dashboard
 from scanner import loop as scanner_loop
 from connection import EmulatorConnection, OBDConnection
-from websocket import iniciar
 
-
-CONNECTION_TYPE = "obd"
-
+CONNECTION_TYPE = "emulator"
 
 if CONNECTION_TYPE == "emulator":
     connection = EmulatorConnection(
@@ -26,44 +22,25 @@ elif CONNECTION_TYPE == "obd":
     )
 
 else:
-    raise ValueError(
-        f"Tipo de conexão inválido: {CONNECTION_TYPE}"
-    )
-
-
-def iniciar_scanner():
-    asyncio.run(scanner_loop(connection))
-
-
-def iniciar_websocket():
-    asyncio.run(iniciar())
-
+    raise ValueError("Tipo de conexão inválido")
 
 app = QApplication(sys.argv)
-
 
 dashboard = Dashboard()
 dashboard.show()
 
+def iniciar_scanner():
 
-# websocket primeiro
-threading.Thread(
-    target=iniciar_websocket,
-    daemon=True
-).start()
+    asyncio.run(
+        scanner_loop(
+            connection,
+            lambda speed, rpm: dashboard.atualizar.emit(speed, rpm)
+        )
+    )
 
-
-time.sleep(0.5)
-
-
-# scanner OBD
 threading.Thread(
     target=iniciar_scanner,
     daemon=True
 ).start()
-
-
-dashboard.iniciar_ws()
-
 
 sys.exit(app.exec())
