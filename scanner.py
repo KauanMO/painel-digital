@@ -2,7 +2,9 @@ import asyncio
 
 
 def extrair_pid(hex_string, pid):
-    partes = hex_string.replace("\r", " ").split()
+    hex_string = normalizar_hex(hex_string)
+
+    partes = hex_string.split()
 
     try:
         index = partes.index("41")
@@ -36,20 +38,27 @@ def converter_speed(hex_string):
 
     return int(dados[0], 16)
 
+def normalizar_hex(hex_string):
+    hex_string = hex_string.replace(" ", "")
+    return " ".join(
+        hex_string[i:i+2]
+        for i in range(0, len(hex_string), 2)
+    )
 
 async def loop(connection, callback):
     connection.connect()
 
     while True:
 
-        rpm = converter_rpm(
-            connection.send_command("010C")
-        )
+        raw_rpm = connection.send_command("010C")
+        rpm = converter_rpm(raw_rpm)
 
-        speed = converter_speed(
-            connection.send_command("010D")
-        )
+        raw_speed = connection.send_command("010D")
+        speed = converter_speed(raw_speed)
+
+        print(f"raw_rpm: {raw_rpm} | raw_speed: {raw_speed}")
+        print(f"rpm: {rpm} | speed: {speed}")
 
         callback(speed, rpm)
 
-        await asyncio.sleep(0.05)
+        await asyncio.sleep(1)
